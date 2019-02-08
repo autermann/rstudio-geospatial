@@ -2,9 +2,7 @@
 
 set -o errexit -o pipefail -o noclobber -o nounset
 
-log() {
-  echo $* >&2
-}
+log() { echo $* >&2; }
 
 usage() {
   cat <<EOF
@@ -67,7 +65,7 @@ if [ -z "$(docker images -q ${IMAGE})" ]; then
 fi
 
 if [[ ! ${RSTUDIO_PASS} ]]; then
-  log -n "R Studio Password for ${RSTUDIO_USER}: "
+  log -n "RStudio Password for ${RSTUDIO_USER}: "
   read -s RSTUDIO_PASS
   log
 fi
