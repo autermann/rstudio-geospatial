@@ -1,0 +1,103 @@
+#!/bin/bash
+
+set -o errexit -o pipefail -o noclobber -o nounset
+
+log() {
+  echo $* >&2
+}
+
+usage() {
+  cat <<EOF
+Usage $0 [options] [directory]
+
+Parameters: 
+  directory                  The directory to mount as the RStudio user's home directory.
+
+Options:
+      --gid <uid>            The user id of the RStudio user (defaults to the ID of the current user).
+      --name <name>          The container name (defaults to "rstudio-geospatial").
+      --password <password>  The RStudio password (default is to ask).
+  -p, --port <port>          The port to run on (defaults to 8080).
+      --uid <uid>            The user id of the RStudio user (defaults to the ID of the current user).
+      --username <username>  The RStudio username (defaults to the current user).
+EOF
+}
+
+
+LONG_OPTIONS="username:,password:uid:,gid:,name:,port:"
+! PARSED=$(getopt -o 'p:' -l ${LONG_OPTIONS} -n "$0" -- "$@")
+if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+    usage >&2
+    exit 1
+fi
+eval set -- "$PARSED"
+
+while true; do
+  case "$1" in
+  --username) RSTUDIO_USER="$2"; shift 2 ;;
+  --password) RSTUDIO_PASS="$2"; shift 2 ;;
+  --uid) RSTUDIO_UID="$2"; shift 2 ;;
+  --gid) RSTUDIO_GID="$2"; shift 2 ;;
+  --name) CNAME="$2"; shift 2 ;;
+  -p|--port) PORT="$2"; shift 2 ;;
+  -h|--help) usage; exit 0 ;;
+  --) shift; break ;;
+  *) usage >&2; exit 1 ;;
+  esac
+done
+
+
+VERSION=3.5.2
+IMAGE="docker.52north.org/rstudio-geospatial:${VERSION}"
+DIRECTORY="${1:+$(readlink -f "$1")}"
+PORT="${PORT:-8080}"
+RSTUDIO_PASS=${RSTUDIO_PASS:-}
+RSTUDIO_USER="${RSTUDIO_USER:-$(id -un)}"
+RSTUDIO_UID="${RSTUDIO_UID:-$(id -u)}"
+RSTUDIO_GID="${RSTUDIO_GID:-$(id -g)}"
+RSTUDIO_URL="http://$(hostname):${PORT}/"
+CNAME="${CNAME:-rstudio-geospatial}"
+
+if [ -z "$(docker images -q ${IMAGE})" ]; then
+  log "Trying to pull ${IMAGE}"
+  if ! docker pull ${IMAGE} 2>/dev/null; then
+    log "Pull failed, building ${IMAGE}"
+    docker build -t ${IMAGE} "${DEV_DIR}"
+  fi
+fi
+
+if [[ ! ${RSTUDIO_PASS} ]]; then
+  log -n "R Studio Password for ${RSTUDIO_USER}: "
+  read -s RSTUDIO_PASS
+  log
+fi
+
+RSTUDIO_PASS="${RSTUDIO_PASS:-$RSTUDIO_USER}"
+
+log "Starting ${IMAGE} with name ${CNAME}"
+
+ARGS=(
+  --detach 
+  --rm 
+  --name ${CNAME} 
+  --publish ${PORT}:8787
+  --env "USER=${RSTUDIO_USER}"
+  --env "PASSWORD=${RSTUDIO_PASS}"
+  --env "USERID=${RSTUDIO_UID}"
+  --env "GROUPID=${RSTUDIO_GID}"
+)
+
+if [[ -e ${DIRECTORY} ]]; then
+  ARGS+=(--volume "${DIRECTORY}:/home/${RSTUDIO_USER}/")
+fi
+
+CID=$(docker run "${ARGS[@]}" "${IMAGE}")
+
+log "Started RStudio container: ${CID}"
+
+unset RSTUDIO_PASS
+
+command -v xdg-open 2>&1 >/dev/null \
+  && xdg-open "${RSTUDIO_URL}" 2>&1 >/dev/null \
+  || log "R Studio is available at ${RSTUDIO_URL}"
+
