@@ -60,7 +60,8 @@ if [ -z "$(docker images -q ${IMAGE})" ]; then
   log "Trying to pull ${IMAGE}"
   if ! docker pull ${IMAGE} 2>/dev/null; then
     log "Pull failed, building ${IMAGE}"
-    docker build -t ${IMAGE} "${DEV_DIR}"
+    BUILD_CONTEXT="$(readlink -f $(basename "$0"))"
+    docker build -t ${IMAGE} "${BUILD_CONTEXT}"
   fi
 fi
 
