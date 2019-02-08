@@ -2,37 +2,6 @@ FROM rocker/rstudio:3.5.2
 
 LABEL maintainer="Christian Autermann <c.autermann@52north.org>"
 
-# install python and dependencies required for R
-RUN  apt-get update \
-  && apt-get install --no-install-recommends --yes \
-        lbzip2 \
-        libcairo-dev \
-        libfftw3-dev \
-        libgdal-dev \
-        libgeos-dev \
-        libgit2-dev \
-        libgl1-mesa-dev \
-        libglu1-mesa-dev \
-        libgsl-dev \
-        libhdf4-alt-dev \
-        libhdf5-dev \
-        libjq-dev \
-        liblwgeom-dev \
-        libnetcdf-dev \
-        libproj-dev \
-        libprotobuf-dev \
-        libsqlite3-dev \
-        libssl-dev \
-        libudunits2-dev \
-        netcdf-bin \
-        protobuf-compiler \
-        python-dev \
-        python-pip \
-        tk-dev \
-        unixodbc-dev \
-  # clean-up apt
-  && apt-get clean && rm -rf /var/lib/apt/lists
-
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     lbzip2 \
